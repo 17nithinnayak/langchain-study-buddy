@@ -4,12 +4,7 @@ from dotenv import load_dotenv
 # --- SETUP ---
 # This line MUST be at the top to load the API key from the .env file
 load_dotenv()
-api_key = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 
-if not api_key:
-    raise ValueError("HUGGINGFACEHUB_API_TOKEN is missing from .env!")
-
-os.environ["HUGGINGFACEHUB_API_TOKEN"] = api_key
 # Updated imports to fix the deprecation warnings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -17,6 +12,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEndpoint
 from langchain.chains import RetrievalQA
+from langchain_groq import ChatGroq
 
 # 1. LOAD THE DOCUMENT
 print("Loading document...")
@@ -37,16 +33,12 @@ db = FAISS.from_documents(docs, embeddings)
 print("Vector DB created successfully.")
 
 # 4. INITIALIZE THE LLM
-print("Initializing LLM from Hugging Face Hub...")
-# The HuggingFaceHub class will now automatically find the API token
-# loaded by load_dotenv()
-llm = HuggingFaceEndpoint(
-    repo_id="mistralai/Mistral-7B-Instruct-v0.3",
-    task="text-generation",
-    temperature=0.1,
-    max_new_tokens=512,
-    # huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
-)
+print("Initializing LLM with Groq...")
+llm = ChatGroq(
+    api_key = os.getenv("GROQ_API_KEY"),
+    model="llama3-8b-8192",
+    temperature=0.1
+    )
 print("LLM initialized.")
 
 # 5. CREATE THE RETRIEVALQA CHAIN
@@ -55,15 +47,15 @@ qa_chain = RetrievalQA.from_chain_type(
     llm=llm,
     chain_type="stuff",
     retriever=db.as_retriever(search_kwargs={"k": 2}),
-    return_source_documents=True
+    
 )
 print("Chain created.")
 
-# --- QUERYING ---
+
 query = "What are the properties of a Binary Search Tree?"
 print(f"\nQuerying the chain with: '{query}'")
 result = qa_chain.invoke({"query": query})
 
-# Print the beautiful result
+
 print("\n--- Answer ---")
 print(result["result"])
